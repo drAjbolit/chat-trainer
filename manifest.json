@@ -2,8 +2,11 @@
   "manifest_version": 3,
   "name": "Chat DOM Trainer",
   "version": "1.0",
-  "description": "Обучаемое расширение для авто-ввода и отправки в чатах",
-  "permissions": ["activeTab", "scripting", "storage", "windows"],
+  "description": "Панель для обучения DOM-элементам чатов",
+  "permissions": ["activeTab", "storage", "scripting"],
+  "background": {
+    "service_worker": "background.js"
+  },
   "action": {
     "default_icon": "icon.png"
   },

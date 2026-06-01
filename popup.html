@@ -1,123 +1,46 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
   <meta charset="UTF-8">
   <style>
-    body { width: 350px; padding: 15px; font-family: Arial, sans-serif; }
-    h3 { margin: 0 0 5px 0; font-size: 16px; color: #333; }
-    .page-info { 
-      background: #f5f5f5; 
-      padding: 8px; 
-      border-radius: 4px; 
-      margin-bottom: 15px; 
-      font-size: 12px; 
-      color: #666;
-      word-break: break-all;
-      border-left: 3px solid #4CAF50;
-    }
-    .section { 
-      margin-bottom: 12px; 
-      padding: 12px; 
-      border: 1px solid #ddd; 
-      border-radius: 5px; 
-      background: #fafafa;
-    }
-    .section-title { 
-      font-weight: bold; 
-      margin-bottom: 8px; 
-      font-size: 13px; 
-      color: #333;
-    }
-    input[type="text"] { 
-      width: 100%; 
-      padding: 6px; 
-      margin-bottom: 6px; 
-      box-sizing: border-box;
-      border: 1px solid #ccc;
-      border-radius: 3px;
-    }
-    button { 
-      width: 100%; 
-      padding: 8px; 
-      margin: 3px 0; 
-      cursor: pointer; 
-      border: none; 
-      border-radius: 3px; 
-      font-size: 13px;
-      transition: all 0.2s;
-    }
-    button:hover { opacity: 0.9; transform: translateY(-1px); }
-    .btn-primary { background: #4CAF50; color: white; }
-    .btn-secondary { background: #2196F3; color: white; }
-    .btn-warning { background: #ff9800; color: white; }
-    #status { 
-      padding: 8px; 
-      margin: 10px 0; 
-      border-radius: 3px; 
-      text-align: center; 
-      font-size: 13px;
-      display: none;
-    }
+    body { width: 320px; padding: 15px; font-family: system-ui, sans-serif; }
+    h3 { margin: 0 0 15px 0; font-size: 16px; }
+    .section { margin-bottom: 12px; padding: 10px; border: 1px solid #eee; border-radius: 6px; }
+    input { width: 100%; padding: 6px; margin-bottom: 6px; box-sizing: border-box; }
+    button { width: 100%; padding: 8px; margin: 4px 0; cursor: pointer; border: none; border-radius: 4px; color: #fff; }
+    .btn-green { background: #4CAF50; }
+    .btn-blue { background: #2196F3; }
+    .btn-orange { background: #FF9800; }
+    #status { padding: 8px; margin: 10px 0; border-radius: 4px; text-align: center; font-size: 13px; display: none; }
     #status.show { display: block; }
-    #status.error { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
-    #status.success { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
-    #status.info { background: #e3f2fd; color: #1565c0; border: 1px solid #90caf9; }
-    .mode-active { 
-      background: #fff3e0; 
-      border: 2px solid #ff9800;
-      animation: pulse 2s infinite;
-    }
-    @keyframes pulse {
-      0% { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0.4); }
-      70% { box-shadow: 0 0 0 10px rgba(255, 152, 0, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0); }
-    }
-    .hint {
-      font-size: 11px;
-      color: #888;
-      margin-top: 4px;
-      font-style: italic;
-    }
+    #status.error { background: #ffebee; color: #c62828; }
+    #status.success { background: #e8f5e9; color: #2e7d32; }
   </style>
 </head>
 <body>
   <h3>🎯 Chat DOM Trainer</h3>
-  <div class="page-info" id="pageInfo">
-    Загрузка информации о странице...
-  </div>
-  
   <div id="status"></div>
-  
-  <!-- Секция 1: Определение поля ввода -->
+
   <div class="section">
-    <div class="section-title">🔍 Поле ввода</div>
-    <input type="text" id="searchPhrase" placeholder="Текст для поиска поля (например: 'Сообщение')...">
-    <button id="btnDetectInput" class="btn-primary">Найти поле ввода</button>
-    <div class="hint">Автоматически найдёт поле по тексту-подсказке</div>
+    <input type="text" id="searchPhrase" placeholder="Фраза для поиска поля...">
+    <button id="btnDetectInput" class="btn-green">Определить поле ввода</button>
   </div>
-  
-  <!-- Секция 2: Кнопка отправки -->
-  <div class="section" id="sendSection">
-    <div class="section-title">📍 Кнопка отправки</div>
-    <button id="btnDetectSend" class="btn-secondary">👆 Выбрать кнопку Send</button>
-    <div class="hint">После нажатия кликните по кнопке отправки на странице</div>
-  </div>
-  
-  <!-- Секция 3: Отправка сообщения -->
+
   <div class="section">
-    <div class="section-title">💬 Тест отправки</div>
-    <input type="text" id="msgToSend" placeholder="Тестовое сообщение...">
-    <button id="btnSend" class="btn-warning">🚀 Отправить сообщение</button>
+    <button id="btnDetectSend" class="btn-blue">Определить кнопку Send</button>
   </div>
-  
-  <!-- Секция 4: Экспорт/Импорт -->
+
   <div class="section">
-    <div class="section-title">💾 Конфигурация</div>
-    <button id="btnExport" class="btn-primary">💾 Экспорт в JSON</button>
-    <button id="btnImport" class="btn-secondary">📂 Импорт из JSON</button>
-    <input type="file" id="fileInput" accept=".json" style="display: none;">
+    <input type="text" id="msgToSend" placeholder="Сообщение для отправки...">
+    <button id="btnSend" class="btn-orange">Отправить</button>
   </div>
-  
+
+  <div class="section">
+    <button id="btnExport" class="btn-green"> Экспорт JSON</button>
+    <button id="btnImport" class="btn-blue">📂 Импорт JSON</button>
+    <input type="file" id="fileInput" accept=".json" style="display:none">
+  </div>
+
   <script src="popup.js"></script>
 </body>
 </html>
