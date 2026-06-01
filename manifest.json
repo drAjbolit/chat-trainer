@@ -3,9 +3,8 @@
   "name": "Chat DOM Trainer",
   "version": "1.0",
   "description": "Обучаемое расширение для авто-ввода и отправки в чатах",
-  "permissions": ["activeTab", "scripting", "storage"],
+  "permissions": ["activeTab", "scripting", "storage", "windows"],
   "action": {
-    "default_popup": "popup.html",
     "default_icon": "icon.png"
   },
   "content_scripts": [
