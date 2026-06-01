@@ -2,14 +2,19 @@
   "domain": "chat.qwen.ai",
   "elements": {
     "input": {
-      "selector": "div.message-input-container-area > div:nth-of-type(2).message-input-right-button > div:nth-of-type(2).message-input-right-button-send > div.chat-prompt-send-button > button.send-button",
+      "selector": "div.message-input-wrapper > div:nth-of-type(2).message-input-container > div > div.message-input-container-area > textarea.message-input-textarea",
       "type": "auto",
-      "updated": "2026-06-01T12:52:19.193Z"
+      "updated": "2026-06-01T13:34:07.904Z"
     },
     "send": {
       "selector": "div.message-input-container-area > div:nth-of-type(2).message-input-right-button > div:nth-of-type(2).message-input-right-button-send > div.chat-prompt-send-button > button.send-button",
       "type": "auto",
-      "updated": "2026-06-01T12:52:08.197Z"
+      "updated": "2026-06-01T13:34:26.195Z"
+    },
+    "end_response": {
+      "selector": "div.chat-response-message-right > div:nth-of-type(2).message-hoc-container > div.response-message-footer > div.qwen-chat-package-comp-new-action-control.undefined > div.qwen-chat-package-comp-new-action-control-icons",
+      "type": "auto",
+      "updated": "2026-06-01T13:35:15.921Z"
     }
   },
   "version": "1.0"
