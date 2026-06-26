@@ -286,7 +286,8 @@ $pageOgImage = 'https://102procenta.ru/businka/articles/dvojnoj-brilliantovyj-uz
       <li><a href="/businka/articles/kak-vplesti-businu-v-temlyak/">Как вплести бусину в темляк</a></li>
       <li><a href="/businka/categories/businy-dlya-temlyaka/">Бусины для темляка</a></li>
     </ul>
-
+<?php $beadsCtaVariant = 'knot'; ?>
+<?php include $_SERVER['DOCUMENT_ROOT'] . '/_includes/beads-cta-block.php'; ?>
         <h2 id="related">Что делать дальше</h2>
 
         <p>
