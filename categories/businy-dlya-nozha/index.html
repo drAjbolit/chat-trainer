@@ -1,0 +1,401 @@
+<?php
+function bn_h($value) {
+  return htmlspecialchars((string)$value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+}
+
+function bn_load_json($path) {
+  if (!is_readable($path)) {
+    return [];
+  }
+  $data = json_decode(file_get_contents($path), true);
+  return is_array($data) ? $data : [];
+}
+
+function bn_site_path($url) {
+  $path = parse_url((string)$url, PHP_URL_PATH);
+  return $path ?: (string)$url;
+}
+
+function bn_material_text($material) {
+  $map = [
+    'metal' => 'латунь с патиной',
+    'metal_color' => 'латунь с ручной росписью',
+    'uv-resine' => 'УФ-смола с ручной росписью',
+    'uv_resine' => 'УФ-смола с ручной росписью',
+    'other' => 'авторская бусина',
+  ];
+  return $map[$material] ?? ($material ?: 'авторская бусина');
+}
+
+function bn_material_class($material) {
+  $map = [
+    'metal' => 'material-metal',
+    'metal_color' => 'material-metalcolor',
+    'uv-resine' => 'material-uv',
+    'uv_resine' => 'material-uv',
+  ];
+  return $map[$material] ?? 'material-other';
+}
+
+function bn_item_url($item, $mediaMap) {
+  $folder = (string)($item['folder'] ?? '');
+  if ($folder !== '' && !empty($mediaMap[$folder]['page_url'])) {
+    return bn_site_path($mediaMap[$folder]['page_url']);
+  }
+  if (!empty($item['page_url'])) {
+    return bn_site_path($item['page_url']);
+  }
+  return '/businka/items/' . rawurlencode($folder) . '/item.html';
+}
+
+function bn_item_image($item, $mediaMap) {
+  $folder = (string)($item['folder'] ?? '');
+  $fallbackAlt = 'Бусина для ножевого темляка ' . ((string)($item['title'] ?? 'ручной работы'));
+
+  if ($folder !== '' && !empty($mediaMap[$folder]['photos']) && is_array($mediaMap[$folder]['photos'])) {
+    $photo = $mediaMap[$folder]['photos'][0];
+
+    if (is_array($photo)) {
+      $src = '';
+      if (!empty($photo['url'])) {
+        $src = bn_site_path($photo['url']);
+      } elseif (!empty($photo['src'])) {
+        $src = '/businka/items/' . rawurlencode($folder) . '/' . ltrim((string)$photo['src'], '/');
+      }
+
+      if ($src !== '') {
+        return [$src, (string)($photo['alt'] ?? $fallbackAlt)];
+      }
+    }
+
+    if (is_string($photo) && $photo !== '') {
+      return ['/businka/items/' . rawurlencode($folder) . '/' . ltrim($photo, '/'), $fallbackAlt];
+    }
+  }
+
+  return ['/businka/img/placeholder.jpg', $fallbackAlt];
+}
+
+function bn_price_text($price) {
+  $price = trim((string)$price);
+  if ($price === '') {
+    return '';
+  }
+  if (preg_match('/^\d+$/', $price)) {
+    return number_format((int)$price, 0, '', ' ') . ' ₽';
+  }
+  return preg_replace('/\s+/', ' ', $price);
+}
+
+function bn_material_score($material) {
+  $scores = [
+    'metal' => 4,
+    'metal_color' => 3,
+    'uv-resine' => 2,
+    'uv_resine' => 2,
+  ];
+  return $scores[(string)$material] ?? 1;
+}
+
+function bn_hole_score($hole) {
+  $hole = str_replace(',', '.', (string)$hole);
+  if (preg_match('/(4\.5|5|6)/', $hole)) {
+    return 2;
+  }
+  if (preg_match('/4/', $hole)) {
+    return 1;
+  }
+  return 0;
+}
+
+function bn_prepare_items($items) {
+  $items = array_values(array_filter($items, function ($item) {
+    return is_array($item) && !empty($item['folder']) && !empty($item['title']);
+  }));
+
+  usort($items, function ($a, $b) {
+    $aStock = !empty($a['availability']) ? 1 : 0;
+    $bStock = !empty($b['availability']) ? 1 : 0;
+    if ($aStock !== $bStock) {
+      return $bStock <=> $aStock;
+    }
+
+    $aMaterial = bn_material_score($a['material'] ?? '');
+    $bMaterial = bn_material_score($b['material'] ?? '');
+    if ($aMaterial !== $bMaterial) {
+      return $bMaterial <=> $aMaterial;
+    }
+
+    $aHole = bn_hole_score($a['paracord_hole'] ?? '');
+    $bHole = bn_hole_score($b['paracord_hole'] ?? '');
+    if ($aHole !== $bHole) {
+      return $bHole <=> $aHole;
+    }
+
+    return ((int)($b['id'] ?? 0)) <=> ((int)($a['id'] ?? 0));
+  });
+
+  return $items;
+}
+
+function bn_build_cards($items, $mediaMap, $limit = 12) {
+  $items = array_slice(bn_prepare_items($items), 0, $limit);
+  $html = [];
+
+  foreach ($items as $item) {
+    [$imageSrc, $imageAlt] = bn_item_image($item, $mediaMap);
+    $url = bn_item_url($item, $mediaMap);
+    $title = (string)$item['title'];
+    $material = bn_material_text((string)($item['material'] ?? ''));
+    $materialClass = bn_material_class((string)($item['material'] ?? ''));
+    $price = bn_price_text($item['price'] ?? '');
+    $availabilityText = !empty($item['availability']) ? 'В наличии' : 'Нет в наличии';
+    $availabilityClass = !empty($item['availability']) ? 'in-stock' : 'out-of-stock';
+
+    $specs = [];
+    if (!empty($item['weight'])) $specs[] = 'Вес: ' . $item['weight'];
+    if (!empty($item['size'])) $specs[] = 'Размер: ' . $item['size'];
+    if (!empty($item['paracord_hole'])) $specs[] = 'Отверстие: ' . $item['paracord_hole'];
+
+    $finish = trim((string)($item['finish'] ?? ''));
+
+    $html[] = '<a class="item-card" href="' . bn_h($url) . '" title="' . bn_h('Открыть карточку бусины для ножевого темляка «' . $title . '»') . '">' .
+      '<div class="item-image-wrapper">' .
+        '<img src="' . bn_h($imageSrc) . '" alt="' . bn_h($imageAlt) . '" class="item-image" loading="lazy" decoding="async">' .
+        '<div class="item-material-badge ' . bn_h($materialClass) . '">' . bn_h($material) . '</div>' .
+      '</div>' .
+      '<div class="item-info">' .
+        '<h2 class="item-title">' . bn_h($title) . '</h2>' .
+        '<div class="availability ' . bn_h($availabilityClass) . '">' . bn_h($availabilityText) . '</div>' .
+        ($price !== '' ? '<div class="price-large"><span class="price-number">' . bn_h($price) . '</span></div>' : '') .
+        (!empty($specs) ? '<div class="item-details">' . bn_h(implode(' · ', $specs)) . '</div>' : '') .
+        ($finish !== '' ? '<div class="item-finish">' . bn_h($finish) . '</div>' : '') .
+        '<span class="item-title">Открыть карточку</span>' .
+      '</div>' .
+    '</a>';
+  }
+
+  return implode("\n", $html);
+}
+
+function bn_build_itemlist_schema($items, $mediaMap, $limit = 12) {
+  $elements = [];
+  foreach (array_slice(bn_prepare_items($items), 0, $limit) as $i => $item) {
+    [$imageSrc] = bn_item_image($item, $mediaMap);
+    $url = 'https://102procenta.ru' . bn_item_url($item, $mediaMap);
+    $price = preg_replace('/[^0-9]/', '', (string)($item['price'] ?? ''));
+
+    $product = [
+      '@type' => 'Product',
+      'name' => 'Бусина для ножевого темляка «' . (string)$item['title'] . '»',
+      'url' => $url,
+      'image' => 'https://102procenta.ru' . bn_site_path($imageSrc),
+      'material' => bn_material_text((string)($item['material'] ?? '')),
+      'description' => 'Авторская бусина для ножевого темляка, паракорда, EDC-подвеса или брелока.',
+    ];
+
+    if ($price !== '') {
+      $product['offers'] = [
+        '@type' => 'Offer',
+        'url' => $url,
+        'priceCurrency' => 'RUB',
+        'price' => $price,
+        'availability' => !empty($item['availability']) ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+      ];
+    }
+
+    $elements[] = [
+      '@type' => 'ListItem',
+      'position' => $i + 1,
+      'item' => $product,
+    ];
+  }
+
+  return json_encode([
+    '@context' => 'https://schema.org',
+    '@type' => 'ItemList',
+    'name' => 'Бусины для ножевого темляка',
+    'numberOfItems' => count($elements),
+    'itemListElement' => $elements,
+  ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+}
+
+$bnItems = bn_load_json($_SERVER['DOCUMENT_ROOT'] . '/businka/data/items.json');
+$bnMedia = bn_load_json($_SERVER['DOCUMENT_ROOT'] . '/businka/data/businka_media.json');
+$bnCardsHtml = bn_build_cards($bnItems, $bnMedia, 12);
+$bnItemListSchema = bn_build_itemlist_schema($bnItems, $bnMedia, 12);
+?>
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+  <title>Бусины для ножа купить — авторские бусины для ножевого темляка | Мастерская 102%</title>
+  <meta name="description" content="Бусины для ножа и ножевого темляка: авторские модели для паракорда и EDC. Цена, наличие, вес, размер и отверстие под шнур в карточках.">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://102procenta.ru/businka/categories/businy-dlya-nozha/">
+
+  <meta property="og:locale" content="ru_RU">
+  <meta property="og:title" content="Бусины для ножа и ножевого темляка">
+  <meta property="og:description" content="Авторские бусины для ножевого темляка, паракорда и EDC. Цена, наличие и параметры в карточках.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://102procenta.ru/businka/categories/businy-dlya-nozha/">
+
+  <link rel="icon" type="image/png" href="/favicon/favicon-96x96.png" sizes="96x96" />
+  <link rel="icon" type="image/svg+xml" href="/favicon/favicon.svg" />
+  <link rel="shortcut icon" href="/favicon/favicon.ico" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-title" content="Мастерская 102%" />
+
+  <link rel="stylesheet" href="/css/art_1.css">
+  <link rel="stylesheet" href="/css/category.css">
+  <link rel="stylesheet" href="/css/item.css">
+  <link rel="stylesheet" href="/css/podval-universal.css">
+</head>
+
+<body class="article-page category-page" data-section="businka" data-category="all">
+<?php include $_SERVER['DOCUMENT_ROOT'] . '/_includes/metrika.php'; ?>
+
+<div id="fade"></div>
+<div id="spark"></div>
+
+<div class="top-nav">
+  <a href="/businka/" class="back-to-expo" data-back="/businka/" title="Назад к бусинам">←</a>
+  <a href="/businka/" class="home-button" title="На главную бусин">⌂</a>
+</div>
+
+<div class="what-wrapper">
+  <div class="what-container">
+
+    <div class="breadcrumbs"><a href="/">Главная</a> <span>/</span>
+      <a href="/businka/">Бусины</a> <span>/</span>
+      <span>Бусины для ножа</span></div>
+
+    <div class="article-card">
+      <div class="article-header">
+        <h1 class="article-title">Бусины для ножа</h1>
+        <div class="article-category">Ножевой темляк и EDC</div>
+      </div>
+
+      <div class="article-text markdown-body">
+        <p><strong>Бусина для ножа ставится на темляк, чтобы подвес легче находился рукой и лучше ощущался в кармане.</strong></p>
+        <p>Здесь собрана витрина авторских бусин для ножевого темляка, паракорда и EDC. У каждой модели указаны цена, наличие, вес, размер и отверстие под шнур.</p>
+        <p>Нужна не только ножевая посадка? Смотрите также <a href="/businka/categories/businy-dlya-temlyaka/">бусины для темляка</a> и общую категорию <a href="/businka/categories/temlyachnye-businy/">темлячных бусин</a>.</p>
+      </div>
+    </div>
+
+    <?php if ($bnCardsHtml !== ''): ?>
+    <div class="category-wrapper">
+      <div class="category-frame">
+        <h2 class="category-title">Бусины для ножевого темляка</h2>
+        <div class="article-text markdown-body">
+          <p><strong>Ниже — подборка из 12 моделей, а не весь каталог.</strong> Сначала идут бусины в наличии. Для ножевого темляка выше показаны более плотные модели и варианты с удобным отверстием под паракорд.</p>
+        </div>
+        <div class="items-grid">
+          <?= $bnCardsHtml ?>
+        </div>
+        <div class="article-text markdown-body">
+          <p><a href="/businka/categories/businka-category-all.html">Открыть все изделия</a> или перейти в раздел <a href="/businka/categories/businy-dlya-temlyaka/">бусин для темляка</a>.</p>
+        </div>
+      </div>
+    </div>
+    <?php endif; ?>
+
+    <div class="article-card">
+      <div class="article-text markdown-body">
+        <h2>Что важно для ножевого темляка</h2>
+        <p>На ноже бусина работает заметнее, чем на обычном брелоке. Её чаще берут пальцами. Ею находят темляк. Она добавляет вес подвесу.</p>
+        <p>Поэтому важны форма, вес и отверстие. Слишком лёгкая бусина почти не чувствуется. Слишком цепкая может мешать в кармане.</p>
+
+        <ul class="materials-list">
+          <li><strong>Вес.</strong> Для ножевого темляка часто удобнее латунь. Она лучше ощущается рукой.</li>
+          <li><strong>Форма.</strong> Лучше выбирать бусину без острых выступов. Она меньше цепляет одежду.</li>
+          <li><strong>Отверстие.</strong> Для паракорда чаще смотрят 4,5–5 мм. Но всё зависит от плетения.</li>
+          <li><strong>Материал.</strong> Металл даёт вес. УФ-смола легче и ярче по образу.</li>
+        </ul>
+
+        <?php include $_SERVER['DOCUMENT_ROOT'] . '/_includes/soft-contact-card.php'; ?>
+
+        <h2>Как выбрать бусину для ножа</h2>
+        <p>Сначала решите, как нож носится. Для кармана важна компактность. Для рюкзака или подсумка можно взять модель крупнее.</p>
+        <p>Потом смотрите отверстие. Паракорд бывает разным. Узел тоже влияет на посадку. Если сомневаетесь, откройте карточку и проверьте размер.</p>
+        <p>Для первого ножевого темляка чаще выбирают спокойную латунную бусину. Для яркого EDC-набора можно взять расписную модель.</p>
+
+        <?php include $_SERVER['DOCUMENT_ROOT'] . '/_includes/article-commercial-block.php'; ?>
+
+        <h2>Полезные страницы</h2>
+        <ul class="related-list">
+          <li><a href="/businka/categories/businy-dlya-temlyaka/">Бусины для темляка</a></li>
+          <li><a href="/businka/categories/temlyachnye-businy/">Темлячные бусины ручной работы</a></li>
+          <li><a href="/businka/articles/kak-vplesti-businu-v-temlyak/">Как вплести бусину в темляк</a></li>
+          <li><a href="/businka/articles/brilliantovyi-uzel-na-temlyake/">Бриллиантовый узел на темляке</a></li>
+          <li><a href="/businka/articles/pletenie-temlyaka-zmeika/">Плетение темляка «змейка»</a></li>
+        </ul>
+
+        <h2>FAQ</h2>
+        <h3>Можно ли купить бусину отдельно от темляка?</h3>
+        <p>Да. Бусину можно купить отдельно. В карточке указаны цена, наличие и параметры.</p>
+        <h3>Какая бусина лучше для ножевого темляка?</h3>
+        <p>Чаще выбирают модель с ощутимым весом и формой без острых выступов. Для этого хорошо подходит латунь.</p>
+        <h3>Подойдёт ли бусина под паракорд?</h3>
+        <p>Проверяйте отверстие в карточке. Для паракорда часто удобны 4,5–5 мм, но плетение тоже важно.</p>
+      </div>
+    </div>
+  </div>
+
+  <?php include $_SERVER['DOCUMENT_ROOT'] . '/_includes/podval-universal.php'; ?>
+</div>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {"@type":"ListItem","position":1,"name":"Главная","item":"https://102procenta.ru/"},
+    {"@type":"ListItem","position":2,"name":"Бусины","item":"https://102procenta.ru/businka/"},
+    {"@type":"ListItem","position":3,"name":"Бусины для ножа","item":"https://102procenta.ru/businka/categories/businy-dlya-nozha/"}
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "name": "Бусины для ножа и ножевого темляка",
+  "description": "Авторские бусины для ножевого темляка, паракорда и EDC-подвесов.",
+  "url": "https://102procenta.ru/businka/categories/businy-dlya-nozha/",
+  "inLanguage": "ru-RU"
+}
+</script>
+<script type="application/ld+json">
+<?= $bnItemListSchema ?>
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Можно ли купить бусину отдельно от темляка?",
+      "acceptedAnswer": {"@type":"Answer","text":"Да. Бусину можно купить отдельно. В карточке указаны цена, наличие, вес, размер и отверстие под шнур."}
+    },
+    {
+      "@type": "Question",
+      "name": "Какая бусина лучше для ножевого темляка?",
+      "acceptedAnswer": {"@type":"Answer","text":"Для ножевого темляка чаще выбирают бусину с ощутимым весом и формой без острых выступов. Часто для этого подходит латунь."}
+    },
+    {
+      "@type": "Question",
+      "name": "Подойдёт ли бусина под паракорд?",
+      "acceptedAnswer": {"@type":"Answer","text":"Нужно проверить отверстие в карточке. Для паракорда часто удобны 4,5–5 мм, но итоговая посадка зависит от плетения."}
+    }
+  ]
+}
+</script>
+<script src="/js/back-button.js"></script>
+<script src="/businka/js/businka-effects-loader.js" defer></script>
+<script src="/businka/js/businka-lightbox.js"></script>
+</body>
+</html>
